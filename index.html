@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05080d">
+<title>Laboratorio Técnico · Diagnóstico Avanzado de Hardware</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        neon: '#39FF14',
+        neonsoft: '#8cff6b'
+      },
+      fontFamily: {
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace']
+      }
+    }
+  }
+}
+</script>
+<style>
+  :root{
+    --bg:#05080d;
+    --panel:#0b1220;
+    --line:#1e3a5f;
+    --cyan:#22d3ee;
+    --neon:#39FF14;
+  }
+  *{ -webkit-tap-highlight-color: transparent; }
+  html{ scroll-behavior:smooth; }
+  body{
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #0a1c2e 0%, transparent 60%),
+      radial-gradient(900px 500px at 100% 100%, #0a1f14 0%, transparent 55%),
+      #05080d;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    color:#e2e8f0;
+    min-height:100vh;
+    overscroll-behavior-y:none;
+  }
+  .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+  .screen{ animation: fadeUp .28s ease both; }
+  @keyframes fadeUp{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;} }
+
+  .card{
+    background: linear-gradient(160deg, rgba(15,26,45,.95), rgba(8,13,22,.95));
+    border:1px solid var(--line);
+    border-radius:16px;
+    box-shadow: 0 0 0 1px rgba(34,211,238,.05), 0 10px 30px -18px rgba(34,211,238,.5);
+  }
+  .glow-cyan{ box-shadow: 0 0 14px rgba(34,211,238,.35); }
+  .glow-neon{ box-shadow: 0 0 16px rgba(57,255,20,.35); }
+
+  .btn{
+    display:flex; align-items:center; justify-content:center; gap:.5rem;
+    padding:.85rem 1rem; border-radius:12px; font-weight:700; font-size:.9rem;
+    border:1px solid transparent; transition: transform .12s ease, filter .2s ease, background .2s;
+    min-height:48px; cursor:pointer; text-align:center; line-height:1.1;
+  }
+  .btn:active{ transform: scale(.97); }
+  .btn:disabled{ opacity:.35; cursor:not-allowed; transform:none; }
+  .btn-primary{ background:linear-gradient(135deg,#06b6d4,#0284c7); color:#001318; }
+  .btn-neon{ background:linear-gradient(135deg,#39FF14,#0ea5e9); color:#00180a; }
+  .btn-sec{ background:#0d1728; border-color:#1e40af; color:#7dd3fc; }
+  .btn-ghost{ background:transparent; border-color:#334155; color:#94a3b8; }
+  .btn-danger{ background:linear-gradient(135deg,#ef4444,#b91c1c); color:#fff; }
+
+  .field{
+    width:100%; background:#080e18; border:1px solid #1e3a5f; border-radius:12px;
+    padding:.85rem .9rem; color:#e2e8f0; font-size:1rem; outline:none; min-height:48px;
+  }
+  .field:focus{ border-color:#22d3ee; box-shadow:0 0 0 3px rgba(34,211,238,.15); }
+
+  .opt{
+    display:flex; gap:.65rem; align-items:flex-start;
+    padding:.75rem .85rem; border:1px solid #1e3a5f; border-radius:12px;
+    background:#0a1120; font-size:.85rem; cursor:pointer; transition:.18s;
+  }
+  .opt:active{ background:#0f1a2e; }
+  .opt input{ margin-top:.2rem; accent-color:#22d3ee; transform:scale(1.15); flex:none; }
+  .opt.correct{ border-color:#39FF14; background:rgba(57,255,20,.08); }
+  .opt.wrong{ border-color:#ef4444; background:rgba(239,68,68,.08); }
+
+  .bios-tab{
+    padding:.55rem .8rem; font-size:.72rem; letter-spacing:.06em; border-radius:8px 8px 0 0;
+    border:1px solid transparent; color:#64748b; background:transparent; font-weight:700;
+  }
+  .bios-tab.active{ background:#0d1a2c; border-color:#1e3a5f; border-bottom-color:transparent; color:#22d3ee; }
+
+  .step-num{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:26px; height:26px; border-radius:8px; font-size:.72rem; font-weight:800;
+    background:rgba(34,211,238,.12); color:#22d3ee; border:1px solid rgba(34,211,238,.35);
+    font-family: ui-monospace, monospace; flex:none;
+  }
+
+  .locked{ opacity:.32; pointer-events:none; filter:grayscale(.7); }
+
+  .badge-pend{ background:rgba(100,116,139,.25); color:#94a3b8; }
+  .badge-ok{ background:rgba(57,255,20,.16); color:#39FF14; }
+
+  #gaugeFill{ transition: stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1); }
+
+  .bar-track{ height:14px; background:#0f1a2b; border-radius:999px; overflow:hidden; border:1px solid #1e293b; }
+  .bar-fill{ height:100%; width:0%; transition: width .8s cubic-bezier(.2,.8,.2,1), background .3s; border-radius:999px; }
+
+  .matrix-cell[contenteditable="true"]:focus{
+    outline:2px solid #22d3ee; background:rgba(34,211,238,.07); border-radius:6px;
+  }
+
+  table.mx{ width:100%; border-collapse:collapse; font-size:.78rem; }
+  table.mx th{ background:rgba(34,211,238,.1); color:#67e8f9; font-size:.68rem; letter-spacing:.05em; text-transform:uppercase; padding:.6rem .5rem; text-align:left; }
+  table.mx td{ border-top:1px solid #16273f; padding:.6rem .5rem; vertical-align:top; }
+  table.mx td:first-child{ color:#7dd3fc; font-weight:700; width:26%; }
+
+  ::-webkit-scrollbar{ width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb{ background:#1e3a5f; border-radius:8px; }
+
+  .toast{
+    position:fixed; left:50%; transform:translateX(-50%);
+    bottom:calc(16px + env(safe-area-inset-bottom));
+    z-index:80; max-width:92vw;
+    padding:.8rem 1rem; border-radius:12px; font-size:.82rem; font-weight:600;
+    animation: toastIn .25s ease both;
+  }
+  @keyframes toastIn{ from{opacity:0; transform:translate(-50%,14px);} to{opacity:1; transform:translate(-50%,0);} }
+</style>
+</head>
+<body>
+
+<!-- ================= HEADER ================= -->
+<header id="topbar" class="sticky top-0 z-40 backdrop-blur-md bg-[#05080d]/90 border-b border-cyan-900/50 hidden">
+  <div class="max-w-3xl mx-auto px-3 py-2 flex items-center gap-3">
+    <div class="text-cyan-400 text-2xl leading-none">⚙</div>
+    <div class="flex-1 min-w-0">
+      <div class="text-[10px] tracking-[.2em] text-cyan-400 mono">LABORATORIO TÉCNICO</div>
+      <div id="hdrUser" class="text-xs text-slate-400 truncate">—</div>
+    </div>
+    <div class="text-right">
+      <div class="text-[10px] text-slate-500 mono">MÓDULOS</div>
+      <div id="hdrProg" class="text-sm mono font-bold text-neon">0/4</div>
+    </div>
+  </div>
+  <div class="h-1 bg-slate-800/80">
+    <div id="progBar" class="h-full bg-gradient-to-r from-cyan-400 to-neon transition-all duration-500" style="width:0%"></div>
+  </div>
+</header>
+
+<main class="max-w-3xl mx-auto px-3 pt-4 pb-28">
+
+  <!-- ================= 1. LOGIN ================= -->
+  <section id="screen-login" class="screen">
+    <div class="text-center pt-6 pb-6">
+      <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl border border-cyan-800 bg-cyan-500/5 glow-cyan text-4xl mb-4">🖥️</div>
+      <h1 class="text-2xl font-black tracking-tight text-cyan-300">LABORATORIO TÉCNICO</h1>
+      <p class="mono text-[11px] tracking-[.25em] text-neon mt-1">DIAGNÓSTICO AVANZADO · PROTOCOLO v1.0</p>
+      <p class="text-sm text-slate-400 mt-4 leading-relaxed max-w-sm mx-auto">
+        Diagnóstico Temprano y Configuración Avanzada de Hardware.<br>
+        <span class="text-slate-500">Protocolo técnico para estaciones de trabajo modernas.</span>
+      </p>
+    </div>
+
+    <form id="formLogin" class="card p-4 space-y-4" autocomplete="off">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="step-num">ID</span>
+        <span class="text-sm font-bold text-cyan-300">IDENTIFICACIÓN DEL TÉCNICO</span>
+      </div>
+
+      <div>
+        <label class="block text-[11px] mono text-slate-400 mb-1">APELLIDO</label>
+        <input id="inApellido" class="field" type="text" placeholder="Ej: Gómez" required>
+      </div>
+      <div>
+        <label class="block text-[11px] mono text-slate-400 mb-1">NOMBRE</label>
+        <input id="inNombre" class="field" type="text" placeholder="Ej: Lucía" required>
+      </div>
+      <div>
+        <label class="block text-[11px] mono text-slate-400 mb-1">DIVISIÓN / CURSO</label>
+        <input id="inDivision" class="field" type="text" value="4° Año Técnico Mecánico" required>
+      </div>
+
+      <button type="submit" class="btn btn-neon w-full text-base glow-neon mt-2">
+        ▶ INICIAR CASO CLÍNICO 01
+      </button>
+      <p id="loginError" class="hidden text-xs text-red-400 text-center"></p>
+    </form>
+
+    <p class="text-center text-[11px] text-slate-600 mt-5 mono">
+      Informática Aplicada · Educación Técnica Secundaria
+    </p>
+  </section>
+
+  <!-- ================= 2. MENÚ / DASHBOARD ================= -->
+  <section id="screen-menu" class="screen hidden">
+    <div class="card p-4 mb-4">
+      <div class="text-[10px] mono tracking-[.2em] text-cyan-400 mb-1">CASO CLÍNICO 01</div>
+      <h2 class="text-lg font-bold text-slate-100 mb-2">Estación de Trabajo Inestable</h2>
+      <div class="text-xs text-slate-400 leading-relaxed border-l-2 border-cyan-800 pl-3">
+        <p class="mb-2"><span class="text-cyan-300 font-semibold">Reporte del cliente:</span> «Los juegos y programas de diseño van a tirones. No puedo instalar Windows 11. Tengo miedo de perder datos por fallos previos.»</p>
+        <p><span class="text-neon font-semibold">Misión:</span> auditar el equipo completo y emitir un informe resolutivo.</p>
+      </div>
+      <div class="mt-3 flex flex-wrap gap-2 text-[10px] mono">
+        <span class="px-2 py-1 rounded bg-slate-800/70 text-slate-400 border border-slate-700">🛠 CPU-Z</span>
+        <span class="px-2 py-1 rounded bg-slate-800/70 text-slate-400 border border-slate-700">💾 CrystalDiskInfo</span>
+        <span class="px-2 py-1 rounded bg-slate-800/70 text-slate-400 border border-slate-700">⚙ UEFI</span>
+      </div>
+    </div>
+
+    <div class="space-y-3" id="menuCards">
+      <!-- M1 -->
+      <button onclick="goTo('m1')" class="card p-4 w-full text-left active:scale-[.99] transition">
+        <div class="flex items-start gap-3">
+          <div class="w-11 h-11 rounded-xl bg-cyan-500/10 border border-cyan-800 flex items-center justify-center text-xl flex-none">🔐</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-[10px] mono text-cyan-500">MÓDULO 01</span>
+              <span id="badge-m1" class="text-[9px] mono px-2 py-0.5 rounded badge-pend">PENDIENTE</span>
+            </div>
+            <h3 class="font-bold text-slate-100 text-sm mt-1">Firmware UEFI y Seguridad</h3>
+            <p class="text-xs text-slate-400 mt-1 leading-snug">TPM 2.0, Secure Boot y protocolo de flasheo seguro (UPS + FAT32 + hash SHA).</p>
+          </div>
+        </div>
+      </button>
+
+      <!-- M2 -->
+      <button onclick="goTo('m2')" class="card p-4 w-full text-left active:scale-[.99] transition">
+        <div class="flex items-start gap-3">
+          <div class="w-11 h-11 rounded-xl bg-cyan-500/10 border border-cyan-800 flex items-center justify-center text-xl flex-none">⚡</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-[10px] mono text-cyan-500">MÓDULO 02</span>
+              <span id="badge-m2" class="text-[9px] mono px-2 py-0.5 rounded badge-pend">PENDIENTE</span>
+            </div>
+            <h3 class="font-bold text-slate-100 text-sm mt-1">El Mito de la RAM Rápida</h3>
+            <p class="text-xs text-slate-400 mt-1 leading-snug">De 4.800 MHz JEDEC a 6.000 MHz reales activando el perfil XMP/EXPO.</p>
+          </div>
+        </div>
+      </button>
+
+      <!-- M3 -->
+      <button onclick="goTo('m3')" class="card p-4 w-full text-left active:scale-[.99] transition">
+        <div class="flex items-start gap-3">
+          <div class="w-11 h-11 rounded-xl bg-cyan-500/10 border border-cyan-800 flex items-center justify-center text-xl flex-none">⚖️</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-[10px] mono text-cyan-500">MÓDULO 03</span>
+              <span id="badge-m3" class="text-[9px] mono px-2 py-0.5 rounded badge-pend">PENDIENTE</span>
+            </div>
+            <h3 class="font-bold text-slate-100 text-sm mt-1">Cuellos de Botella y PSU</h3>
+            <p class="text-xs text-slate-400 mt-1 leading-snug">Balance CPU/GPU, stuttering y cálculo de la fuente de alimentación.</p>
+          </div>
+        </div>
+      </button>
+
+      <!-- M4 -->
+      <button onclick="goTo('m4')" class="card p-4 w-full text-left active:scale-[.99] transition">
+        <div class="flex items-start gap-3">
+          <div class="w-11 h-11 rounded-xl bg-cyan-500/10 border border-cyan-800 flex items-center justify-center text-xl flex-none">💾</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-[10px] mono text-cyan-500">MÓDULO 04</span>
+              <span id="badge-m4" class="text-[9px] mono px-2 py-0.5 rounded badge-pend">PENDIENTE</span>
+            </div>
+            <h3 class="font-bold text-slate-100 text-sm mt-1">Auditoría S.M.A.R.T.</h3>
+            <p class="text-xs text-slate-400 mt-1 leading-snug">HDD con sectores reasignados y SSD con desgaste TBW / límites térmicos.</p>
+          </div>
+        </div>
+      </button>
+    </div>
+
+    <button onclick="goTo('matriz')" class="btn btn-primary w-full mt-4 glow-cyan">
+      📄 IR A LA MATRIZ DE RESOLUCIÓN TÉCNICA
+    </button>
+  </section>
+
+  <!-- ================= MÓDULO 1 ================= -->
+  <section id="screen-m1" class="screen hidden">
+    <button onclick="goTo('menu')" class="btn btn-ghost mb-3 text-xs px-3">← Volver al panel</button>
+
+    <div class="mb-4">
+      <div class="text-[10px] mono tracking-[.2em] text-cyan-400">MÓDULO 01</div>
+      <h2 class="text-xl font-black text-slate-100">Firmware UEFI y Seguridad</h2>
+      <p class="text-xs text-slate-400 mt-1">Requisitos de Windows 11 + protocolo de actualización segura de firmware.</p>
+    </div>
+
+    <!-- Simulador BIOS -->
+    <div class="card overflow-hidden mb-3">
+      <div class="flex items-center justify-between px-3 py-2 border-b border-cyan-900/60 bg-black/40">
+        <span class="mono text-[10px] text-cyan-400 tracking-widest">UEFI SETUP UTILITY</span>
+        <span class="mono text-[10px] text-slate-500">v1.2.0</span>
+      </div>
+
+      <div class="flex overflow-x-auto border-b border-cyan-900/50 px-1 pt-1 gap-1 no-scrollbar">
+        <button class="bios-tab active" data-tab="main">MAIN</button>
+        <button class="bios-tab" data-tab="security">SECURITY</button>
+        <button class="bios-tab" data-tab="boot">BOOT</button>
+        <button class="bios-tab" data-tab="tool">TOOL / FLASH</button>
+      </div>
+
+      <div class="p-3 bg-[#070c15]">
+        <!-- MAIN -->
+        <div class="tab-pane" data-pane="main">
+          <div class="mono text-[11px] space-y-2 text-slate-400">
+            <div class="flex justify-between border-b border-slate-800 pb-1"><span>BIOS Vendor</span><span class="text-slate-200">American Megatrends</span></div>
+            <div class="flex justify-between border-b border-slate-800 pb-1"><span>Versión</span><span class="text-slate-200">1.2.0</span></div>
+            <div class="flex justify-between border-b border-slate-800 pb-1"><span>Fecha</span><span class="text-slate-200">14/03/2024</span></div>
+            <div class="flex justify-between border-b border-slate-800 pb-1"><span>CPU</span><span class="text-slate-200">Detectado · 8C/16T</span></div>
+            <div class="flex justify-between"><span>Memoria Total</span><span class="text-slate-200">32768 MB</span></div>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-3 leading-relaxed">
+            Navegue con las pestañas superiores. Debe habilitar los requisitos de seguridad y ejecutar el protocolo de flasheo seguro.
+          </p>
+        </div>
+
+        <!-- SECURITY -->
+        <div class="tab-pane hidden" data-pane="security">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between gap-3 p-3 rounded-xl border border-slate-800 bg-[#0a1120]">
+              <div class="min-w-0">
+                <div class="text-sm font-bold text-slate-200">TPM 2.0</div>
+                <div class="text-[10px] text-slate-500 leading-snug">Trusted Platform Module · almacena claves y credenciales (BitLocker, Windows Hello).</div>
+              </div>
+              <button id="tgTpm" class="btn btn-sec text-xs px-3 whitespace-nowrap min-w-[104px]">DESACTIVADO</button>
+            </div>
+
+            <div class="flex items-center justify-between gap-3 p-3 rounded-xl border border-slate-800 bg-[#0a1120]">
+              <div class="min-w-0">
+                <div class="text-sm font-bold text-slate-200">Secure Boot</div>
+                <div class="text-[10px] text-slate-500 leading-snug">Verifica la firma digital del cargador de arranque. Bloquea rootkits/bootkits.</div>
+              </div>
+              <button id="tgSb" class="btn btn-sec text-xs px-3 whitespace-nowrap min-w-[104px]">DESACTIVADO</button>
+            </div>
+
+            <div id="m1-sec-fb" class="text-[11px] text-slate-500 leading-relaxed">
+              Windows 11 exige <span class="text-cyan-300">TPM 2.0</span> y <span class="text-cyan-300">Secure Boot</span> habilitados en el firmware.
+            </div>
+          </div>
+        </div>
+
+        <!-- BOOT -->
+        <div class="tab-pane hidden" data-pane="boot">
+          <div class="mono text-[11px] space-y-2 text-slate-400">
+            <div class="flex justify-between border-b border-slate-800 pb-1"><span>Boot Mode</span><span class="text-slate-200">UEFI</span></div>
+            <div class="flex justify-between border-b border-slate-800 pb-1"><span>Secure Boot State</span><span id="bootSbState" class="text-red-400">Disabled</span></div>
+            <div class="flex justify-between border-b border-slate-800 pb-1"><span>TPM Device</span><span id="bootTpmState" class="text-red-400">Not Detected</span></div>
+            <div class="flex justify-between"><span>Boot Option #1</span><span class="text-slate-200">Windows Boot Manager</span></div>
+          </div>
+        </div>
+
+        <!-- TOOL / FLASH -->
+        <div class="tab-pane hidden" data-pane="tool">
+          <div class="space-y-3">
+
+            <!-- Paso 1 -->
+            <div class="p-3 rounded-xl border border-slate-800 bg-[#0a1120]">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="step-num">01</span>
+                <span class="text-xs font-bold text-cyan-300 tracking-wide">DIAGNÓSTICO</span>
+              </div>
+              <button id="btnLeerVersion" class="btn btn-sec w-full text-xs">🔍 Consultar versión actual de UEFI</button>
+              <div id="versionInfo" class="hidden mt-2 mono text-[11px] p-2 rounded bg-black/50 border border-cyan-900 text-cyan-300"></div>
+              <div class="mt-2 space-y-2">
+                <label class="opt"><input type="radio" name="fuente" value="oficial"><span>Descargar el archivo del <b>sitio oficial</b> del fabricante.</span></label>
+                <label class="opt"><input type="radio" name="fuente" value="beta"><span>Descargar de un foro una <b>versión beta</b> más reciente.</span></label>
+              </div>
+            </div>
+
+            <!-- Paso 2 -->
+            <div class="p-3 rounded-xl border border-slate-800 bg-[#0a1120]">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="step-num">02</span>
+                <span class="text-xs font-bold text-cyan-300 tracking-wide">FORMATEO</span>
+              </div>
+              <p class="text-[10px] text-slate-500 mb-2">Seleccione el sistema de archivos para la unidad USB de actualización:</p>
+              <div class="grid grid-cols-3 gap-2">
+                <label class="opt justify-center text-center"><input type="radio" name="formato" value="FAT32" class="hidden"><span class="font-bold">FAT32</span></label>
+                <label class="opt justify-center text-center"><input type="radio" name="formato" value="NTFS" class="hidden"><span class="font-bold">NTFS</span></label>
+                <label class="opt justify-center text-center"><input type="radio" name="formato" value="exFAT" class="hidden"><span class="font-bold">exFAT</span></label>
+              </div>
+              <div id="fmtFb" class="text-[10px] mt-2"></div>
+            </div>
+
+            <!-- Paso 3 -->
+            <div class="p-3 rounded-xl border border-slate-800 bg-[#0a1120]">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="step-num">03</span>
+                <span class="text-xs font-bold text-cyan-300 tracking-wide">VALIDACIÓN</span>
+              </div>
+              <label class="opt" id="optHash"><input type="checkbox" id="chkHash"><span>Verificar la integridad del archivo con <b>hash SHA-256</b> provisto por el fabricante.</span></label>
+            </div>
+
+            <!-- Paso 4 -->
+            <div class="p-3 rounded-xl border border-orange-900/70 bg-orange-950/20">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="step-num" style="background:rgba(251,146,60,.14);color:#fb923c;border-color:rgba(251,146,60,.4)">04</span>
+                <span class="text-xs font-bold text-orange-300 tracking-wide">PREVENCIÓN OBLIGATORIA</span>
+              </div>
+              <div class="text-[10px] text-orange-200/80 mb-2 leading-relaxed">
+                ⚠️ Un corte de energía durante el flasheo corrompe el chip BIOS de forma <b>permanente</b>. Un corte de 2 segundos destruye una placa base de gama alta.
+              </div>
+              <label class="opt" id="optUps"><input type="checkbox" id="chkUps"><span>Equipo conectado a una <b>UPS / fuente ininterrumpida</b>.</span></label>
+            </div>
+
+            <button id="btnFlash" class="btn btn-neon w-full">⚡ INICIAR FLASHEO DE FIRMWARE</button>
+
+            <div class="bar-track"><div id="flashBar" class="bar-fill bg-gradient-to-r from-cyan-400 to-neon"></div></div>
+            <div id="m1-fb" class="text-[11px] leading-relaxed text-slate-400"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= MÓDULO 2 ================= -->
+  <section id="screen-m2" class="screen hidden">
+    <button onclick="goTo('menu')" class="btn btn-ghost mb-3 text-xs px-3">← Volver al panel</button>
+
+    <div class="mb-4">
+      <div class="text-[10px] mono tracking-[.2em] text-cyan-400">MÓDULO 02</div>
+      <h2 class="text-xl font-black text-slate-100">El Mito de la RAM Rápida</h2>
+      <p class="text-xs text-slate-400 mt-1">Velocidad pagada vs. velocidad real: activación del perfil XMP/EXPO.</p>
+    </div>
+
+    <!-- Medidor -->
+    <div class="card p-4 mb-3 text-center">
+      <svg viewBox="0 0 200 112" class="w-full max-w-[280px] mx-auto">
+        <defs>
+          <linearGradient id="gradGauge" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#0ea5e9"/>
+            <stop offset="100%" stop-color="#39FF14"/>
+          </linearGradient>
+        </defs>
+        <path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="#132133" stroke-width="14" stroke-linecap="round"/>
+        <path id="gaugeFill" d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="url(#gradGauge)"
+              stroke-width="14" stroke-linecap="round" stroke-dasharray="251.3" stroke-dashoffset="251.3"/>
+      </svg>
+      <div class="-mt-6">
+        <div id="gaugeVal" class="text-3xl font-black mono text-cyan-300">4800 MHz</div>
+        <div id="gaugeLabel" class="text-[11px] mono text-orange-400 mt-1 tracking-wide">ESTÁNDAR JEDEC POR DEFECTO</div>
+      </div>
+    </div>
+
+    <!-- Paso 1: Acceso -->
+    <div id="m2-step1" class="card p-3 mb-3">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="step-num">01</span><span class="text-xs font-bold text-cyan-300 tracking-wide">ACCESO AL FIRMWARE</span>
+      </div>
+      <div class="rounded-xl border border-cyan-900 bg-black/60 p-3 text-center">
+        <p class="mono text-[10px] text-slate-500 mb-1">POST · American Megatrends</p>
+        <p class="mono text-[11px] text-cyan-300 mb-3">Presione la tecla para ingresar al SETUP</p>
+        <div class="grid grid-cols-3 gap-2">
+          <button class="btn btn-sec text-xs" data-post="DEL">DEL</button>
+          <button class="btn btn-sec text-xs" data-post="F2">F2</button>
+          <button class="btn btn-sec text-xs" data-post="F10">F10</button>
+        </div>
+        <p id="m2-postFb" class="text-[10px] mt-2 text-slate-500">Seleccione la tecla correcta durante el POST.</p>
+      </div>
+    </div>
+
+    <!-- Paso 2: Localización -->
+    <div id="m2-step2" class="card p-3 mb-3 locked">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="step-num">02</span><span class="text-xs font-bold text-cyan-300 tracking-wide">LOCALIZACIÓN</span>
+      </div>
+      <p class="text-[10px] text-slate-500 mb-2">¿A qué sección del UEFI debe navegar?</p>
+      <div class="space-y-2">
+        <label class="opt"><input type="radio" name="m2sec" value="info"><span>Información del Sistema</span></label>
+        <label class="opt"><input type="radio" name="m2sec" value="dram"><span>Configuración DRAM / Overclocking</span></label>
+        <label class="opt"><input type="radio" name="m2sec" value="boot"><span>Orden de Arranque</span></label>
+        <label class="opt"><input type="radio" name="m2sec" value="exit"><span>Salir sin Guardar</span></label>
+      </div>
+    </div>
+
+    <!-- Paso 3: Activación -->
+    <div id="m2-step3" class="card p-3 mb-3 locked">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="step-num">03</span><span class="text-xs font-bold text-cyan-300 tracking-wide">ACTIVACIÓN DEL PERFIL</span>
+      </div>
+      <p class="text-[10px] text-slate-500 mb-2">Seleccione el perfil certificado que ajusta voltaje, latencias y frecuencia:</p>
+      <div class="space-y-2">
+        <label class="opt"><input type="radio" name="m2perfil" value="xmp"><span><b>Perfil XMP (Intel) / EXPO (AMD)</b> certificado</span></label>
+        <label class="opt"><input type="radio" name="m2perfil" value="jedec"><span>Modo JEDEC por defecto (sin cambios)</span></label>
+        <label class="opt"><input type="radio" name="m2perfil" value="manual"><span>Overclock manual sin certificar (valores extremos)</span></label>
+      </div>
+      <div id="m2-perfilFb" class="text-[10px] mt-2"></div>
+    </div>
+
+    <!-- Paso 4: Validación -->
+    <div id="m2-step4" class="card p-3 mb-3 locked">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="step-num">04</span><span class="text-xs font-bold text-cyan-300 tracking-wide">VALIDACIÓN</span>
+      </div>
+      <p class="text-[10px] text-slate-500 mb-2">Guarde los cambios (F10), reinicie y verifique en Windows.</p>
+      <button id="btnF10" class="btn btn-primary w-full text-xs">💾 GUARDAR CAMBIOS Y SALIR (F10)</button>
+
+      <div id="m2-cpuz" class="hidden mt-3">
+        <div class="rounded-xl border border-cyan-900 bg-black/60 p-3">
+          <div class="flex items-center justify-between mb-2">
+            <span class="mono text-[10px] tracking-widest text-cyan-400">CPU-Z · MEMORY</span>
+            <span class="text-neon text-lg">✔</span>
+          </div>
+          <div class="mono text-[11px] space-y-1.5 text-slate-400">
+            <div class="flex justify-between border-b border-slate-800 pb-1"><span>DRAM Frequency</span><span id="cpuzFreq" class="text-cyan-300 font-bold">3000 MHz</span></div>
+            <div class="flex justify-between border-b border-slate-800 pb-1"><span>Module Type</span><span class="text-slate-200">DDR5-6000 (PC5-48000)</span></div>
+            <div class="flex justify-between border-b border-slate-800 pb-1"><span>CAS Latency</span><span class="text-slate-200">30 CL</span></div>
+            <div class="flex justify-between"><span>Channel</span><span class="text-neon font-bold">Dual ✔</span></div>
+          </div>
+        </div>
+        <p class="text-[10px] text-slate-500 mt-2 leading-relaxed">
+          💡 <b class="text-cyan-300">Dato clave:</b> la muesca física del DDR4 y del DDR5 es distinta para impedir inserciones incorrectas. <b class="text-red-400">Forzar la conexión destruye el módulo y la ranura.</b>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= MÓDULO 3 ================= -->
+  <section id="screen-m3" class="screen hidden">
+    <button onclick="goTo('menu')" class="btn btn-ghost mb-3 text-xs px-3">← Volver al panel</button>
+
+    <div class="mb-4">
+      <div class="text-[10px] mono tracking-[.2em] text-cyan-400">MÓDULO 03</div>
+      <h2 class="text-xl font-black text-slate-100">Cuellos de Botella y PSU</h2>
+      <p class="text-xs text-slate-400 mt-1">Cuando un componente no procesa a la velocidad que el otro necesita.</p>
+    </div>
+
+    <div class="card p-4 mb-3">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="step-num">01</span><span class="text-xs font-bold text-cyan-300 tracking-wide">BALANCE CPU / GPU</span>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <div class="flex justify-between text-[11px] mono mb-2">
+            <span class="text-slate-400">NIVEL DE CPU</span>
+            <span id="cpuTierLabel" class="text-cyan-300 font-bold">BÁSICO</span>
+          </div>
+          <input id="cpuTier" type="range" min="1" max="3" step="1" value="1" class="w-full accent-cyan-400 h-2">
+        </div>
+        <div>
+          <div class="flex justify-between text-[11px] mono mb-2">
+            <span class="text-slate-400">NIVEL DE GPU</span>
+            <span id="gpuTierLabel" class="text-cyan-300 font-bold">BÁSICO</span>
+          </div>
+          <input id="gpuTier" type="range" min="1" max="3" step="1" value="1" class="w-full accent-cyan-400 h-2">
+        </div>
+      </div>
+
+      <button id="btnTest" class="btn btn-primary w-full mt-4 text-xs">▶ EJECUTAR PRUEBA DE ESTRÉS</button>
+
+      <div id="m3-result" class="hidden mt-4">
+        <div class="mb-3">
+          <div class="flex justify-between text-[11px] mono mb-1"><span class="text-slate-400">CPU</span><span id="cpuPct" class="text-slate-200">0%</span></div>
+          <div class="bar-track"><div id="cpuBar" class="bar-fill"></div></div>
+        </div>
+        <div>
+          <div class="flex justify-between text-[11px] mono mb-1"><span class="text-slate-400">GPU</span><span id="gpuPct" class="text-slate-200">0%</span></div>
+          <div class="bar-track"><div id="gpuBar" class="bar-fill"></div></div>
+        </div>
+        <div id="m3-diagnostico" class="mt-3 p-3 rounded-xl border text-[11px] leading-relaxed"></div>
+      </div>
+    </div>
+
+    <div class="card p-4 mb-3">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="step-num">02</span><span class="text-xs font-bold text-cyan-300 tracking-wide">FUENTE DE ALIMENTACIÓN (PSU)</span>
+      </div>
+      <div class="mono text-[11px] p-3 rounded-xl bg-black/50 border border-cyan-900 space-y-1.5 mb-3">
+        <div class="flex justify-between text-slate-400"><span>CPU (TDP)</span><span class="text-slate-200">180 W</span></div>
+        <div class="flex justify-between text-slate-400"><span>GPU (TDP)</span><span class="text-slate-200">280 W</span></div>
+        <div class="flex justify-between text-slate-400"><span>Placa + RAM + discos</span><span class="text-slate-200">60 W</span></div>
+        <div class="flex justify-between border-t border-cyan-900 pt-1.5 font-bold"><span class="text-cyan-300">CONSUMO TOTAL</span><span class="text-neon">520 W</span></div>
+      </div>
+      <p class="text-[10px] text-slate-500 mb-2">Regla del 20%: la PSU debe cubrir el TDP total + 20% de margen de seguridad e incluir conectores PCIe dedicados.</p>
+      <div class="grid grid-cols-2 gap-2">
+        <label class="opt justify-center text-center"><input type="radio" name="psu" value="550" class="hidden"><span class="font-bold mono">550 W</span></label>
+        <label class="opt justify-center text-center"><input type="radio" name="psu" value="600" class="hidden"><span class="font-bold mono">600 W</span></label>
+        <label class="opt justify-center text-center"><input type="radio" name="psu" value="650" class="hidden"><span class="font-bold mono">650 W</span></label>
+        <label class="opt justify-center text-center"><input type="radio" name="psu" value="1200" class="hidden"><span class="font-bold mono">1200 W</span></label>
+      </div>
+      <div id="m3-psuFb" class="text-[10px] mt-2"></div>
+    </div>
+  </section>
+
+  <!-- ================= MÓDULO 4 ================= -->
+  <section id="screen-m4" class="screen hidden">
+    <button onclick="goTo('menu')" class="btn btn-ghost mb-3 text-xs px-3">← Volver al panel</button>
+
+    <div class="mb-4">
+      <div class="text-[10px] mono tracking-[.2em] text-cyan-400">MÓDULO 04</div>
+      <h2 class="text-xl font-black text-slate-100">Auditoría S.M.A.R.T.</h2>
+      <p class="text-xs text-slate-400 mt-1">Diagnóstico de almacenamiento con CrystalDiskInfo.</p>
+    </div>
+
+    <!-- HDD -->
+    <div class="card p-4 mb-3 border-red-900/60">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">💿</span>
+          <div>
+            <div class="text-sm font-bold text-slate-100">HDD · Disco Mecánico</div>
+            <div class="mono text-[10px] text-slate-500">1 TB · 7200 RPM · SATA</div>
+          </div>
+        </div>
+        <span class="mono text-[10px] px-2 py-1 rounded bg-red-500/15 text-red-400 border border-red-800">✖ MALO</span>
+      </div>
+
+      <div class="rounded-xl border border-orange-800/60 bg-orange-950/20 p-3 mb-3">
+        <div class="mono text-[11px] text-orange-300 font-bold mb-1">ID 05: SECTORES REASIGNADOS ⚠</div>
+        <div class="mono text-[10px] text-slate-400">Actual: <span class="text-red-400 font-bold">120</span> · Peor: 110 · Umbral: 40</div>
+        <div class="text-[10px] text-orange-200/70 mt-2">Un valor creciente &gt; 0 es advertencia fiable de fallo inminente.</div>
+      </div>
+
+      <div class="mono text-[10px] text-slate-500 mb-2 flex justify-between">
+        <span>Temperatura: <span class="text-orange-400">52 °C</span></span>
+        <span>Horas encendido: 24.180 h</span>
+      </div>
+
+      <p class="text-[11px] text-slate-400 mb-2 font-semibold">¿Cuál es la acción correcta del técnico?</p>
+      <div class="space-y-2">
+        <label class="opt"><input type="radio" name="hddAct" value="format"><span>Formatear el disco y reinstalar Windows.</span></label>
+        <label class="opt"><input type="radio" name="hddAct" value="ignore"><span>Ignorar la alerta: son sectores de reserva del fabricante.</span></label>
+        <label class="opt"><input type="radio" name="hddAct" value="backup"><span><b>Respaldar los datos de inmediato y reemplazar la unidad.</b></span></label>
+        <label class="opt"><input type="radio" name="hddAct" value="chkdsk"><span>Ejecutar <span class="mono">chkdsk /f</span> y seguir usándolo normalmente.</span></label>
+      </div>
+      <div id="m4-hddFb" class="text-[10px] mt-2"></div>
+    </div>
+
+    <!-- SSD -->
+    <div class="card p-4 mb-3 border-orange-900/60">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🧩</span>
+          <div>
+            <div class="text-sm font-bold text-slate-100">SSD · M.2 NVMe</div>
+            <div class="mono text-[10px] text-slate-500">1 TB · PCIe 4.0 x4</div>
+          </div>
+        </div>
+        <span class="mono text-[10px] px-2 py-1 rounded bg-orange-500/15 text-orange-400 border border-orange-800">⚠ RIESGO</span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 mb-3">
+        <div class="rounded-xl border border-cyan-900 bg-black/50 p-3">
+          <div class="mono text-[9px] text-slate-500 mb-1">TBW / % USADO</div>
+          <div class="mono text-sm text-cyan-300 font-bold">450 TB</div>
+          <div class="mono text-[10px] text-slate-400">Usado: 30%</div>
+        </div>
+        <div class="rounded-xl border border-orange-900/70 bg-black/50 p-3">
+          <div class="mono text-[9px] text-slate-500 mb-1">TEMPERATURA</div>
+          <div class="mono text-sm text-orange-400 font-bold">72 °C</div>
+          <div class="mono text-[10px] text-red-400">Límite: &gt; 70 °C</div>
+        </div>
+      </div>
+
+      <p class="text-[11px] text-slate-400 mb-2 font-semibold">Seleccione TODAS las acciones pertinentes:</p>
+      <div class="space-y-2" id="ssdOpts">
+        <label class="opt"><input type="checkbox" value="cool"><span>Mejorar la refrigeración del M.2 (disipador / flujo de aire).</span></label>
+        <label class="opt"><input type="checkbox" value="backup"><span>Programar respaldo preventivo / clonado del sistema.</span></label>
+        <label class="opt"><input type="checkbox" value="ignore"><span>Ignorar todo: el TBW apenas está al 30%.</span></label>
+        <label class="opt"><input type="checkbox" value="fans"><span>Verificar la curva de los ventiladores del gabinete.</span></label>
+        <label class="opt"><input type="checkbox" value="defrag"><span>Ejecutar desfragmentación semanal del SSD.</span></label>
+      </div>
+
+      <button id="btnValidarSSD" class="btn btn-primary w-full mt-3 text-xs">✔ VALIDAR AUDITORÍA SSD</button>
+      <div id="m4-ssdFb" class="text-[10px] mt-2"></div>
+    </div>
+  </section>
+
+  <!-- ================= MATRIZ FINAL ================= -->
+  <section id="screen-matriz" class="screen hidden">
+    <button onclick="goTo('menu')" class="btn btn-ghost mb-3 text-xs px-3">← Volver al panel</button>
+
+    <div class="mb-4">
+      <div class="text-[10px] mono tracking-[.2em] text-cyan-400">ENTREGABLE</div>
+      <h2 class="text-xl font-black text-slate-100">Matriz de Resolución Técnica</h2>
+      <p class="text-xs text-slate-400 mt-1">Revise, complete y edite cada celda antes de exportar el informe.</p>
+    </div>
+
+    <div class="card p-3 mb-3">
+      <div class="text-[10px] mono text-slate-500 mb-2">DATOS DEL TÉCNICO</div>
+      <div id="matrizDatos" class="text-xs text-slate-300 leading-relaxed"></div>
+    </div>
+
+    <div class="card p-3 mb-3 overflow-x-auto">
+      <table class="mx" id="matrizTable">
+        <thead>
+          <tr>
+            <th>Parámetro</th>
+            <th>Estado Detectado</th>
+            <th>Acción / Solución</th>
+          </tr>
+        </thead>
+        <tbody id="matrizBody"></tbody>
+      </table>
+    </div>
+
+    <div class="card p-3 mb-3">
+      <label class="block text-[11px] mono text-slate-400 mb-2">OBSERVACIONES Y CONCLUSIONES</label>
+      <textarea id="obsFinal" rows="5" class="field text-sm" placeholder="Redacte aquí su conclusión técnica del caso clínico..."></textarea>
+    </div>
+
+    <div id="matrizAviso" class="hidden mb-3 p-3 rounded-xl border border-orange-800 bg-orange-950/25 text-[11px] text-orange-200 leading-relaxed"></div>
+
+    <button id="btnDOC" class="btn btn-neon w-full text-base glow-neon mb-3">
+      📥 DESCARGAR INFORME EN FORMATO .DOC
+    </button>
+
+    <button onclick="reiniciarLab()" class="btn btn-ghost w-full text-xs">↺ Reiniciar laboratorio</button>
+
+    <p class="text-center text-[10px] text-slate-600 mt-5 leading-relaxed">
+      El diagnóstico temprano no es un lujo: es la diferencia entre un cliente satisfecho con datos intactos<br>y un equipo destruido con información perdida. <b class="text-slate-500">Tu trabajo protege lo invaluable.</b>
+    </p>
+  </section>
+
+</main>
+
+<script>
+/* =========================================================
+   ESTADO GLOBAL
+   ========================================================= */
+const S = {
+  alumno: { apellido:'', nombre:'', division:'', fecha:'' },
+  m1: { versionLeida:false, fuente:null, formato:null, hash:false, ups:false, flasheado:false, tpm:false, sb:false },
+  m2: { acceso:false, localizado:false, perfil:null, validado:false, freq:4800 },
+  m3: { cpuTier:1, gpuTier:1, balance:false, psu:null, psuOk:false, testeado:false },
+  m4: { hddAccion:null, hddOk:false, ssdAcciones:[], ssdOk:false }
+};
+let DONE = { m1:false, m2:false, m3:false, m4:false };
+
+const $  = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+
+/* =========================================================
+   NAVEGACIÓN
+   ========================================================= */
+function goTo(id){
+  $$('.screen').forEach(s => s.classList.add('hidden'));
+  const el = document.getElementById('screen-' + id);
+  if (el){
+    el.classList.remove('hidden');
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = '';
+  }
+  if (id === 'matriz') buildMatriz();
+  $('#topbar').classList.toggle('hidden', id === 'login');
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+/* =========================================================
+   TOAST
+   ========================================================= */
+function toast(msg, type='ok'){
+  const colors = {
+    ok:   'background:rgba(57,255,20,.14); border:1px solid #39FF14; color:#b9ffab;',
+    err:  'background:rgba(239,68,68,.15); border:1px solid #ef4444; color:#fecaca;',
+    info: 'background:rgba(34,211,238,.13); border:1px solid #22d3ee; color:#a5f3fc;'
+  };
+  const el = document.createElement('div');
+  el.className = 'toast mono';
+  el.style.cssText = colors[type] || colors.ok;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => { el.style.transition='opacity .3s'; el.style.opacity='0'; }, 2400);
+  setTimeout(() => el.remove(), 2800);
+}
+
+/* =========================================================
+   PROGRESO
+   ========================================================= */
+function updateProgress(){
+  DONE.m1 = S.m1.flasheado && S.m1.tpm && S.m1.sb;
+  DONE.m2 = S.m2.validado && S.m2.freq >= 6000;
+  DONE.m3 = S.m3.balance && S.m3.psuOk;
+  DONE.m4 = S.m4.hddOk && S.m4.ssdOk;
+
+  const n = Object.values(DONE).filter(Boolean).length;
+  $('#hdrProg').textContent = n + '/4';
+  $('#progBar').style.width = (n / 4 * 100) + '%';
+
+  ['m1','m2','m3','m4'].forEach(k => {
+    const b = document.getElementById('badge-' + k);
+    if (!b) return;
+    b.textContent = DONE[k] ? '✔ COMPLETADO' : 'PENDIENTE';
+    b.className = 'text-[9px] mono px-2 py-0.5 rounded ' + (DONE[k] ? 'badge-ok' : 'badge-pend');
+  });
+}
+
+/* =========================================================
+   LOGIN
+   ========================================================= */
+$('#formLogin').addEventListener('submit', e => {
+  e.preventDefault();
+  const ap = $('#inApellido').value.trim();
+  const no = $('#inNombre').value.trim();
+  const di = $('#inDivision').value.trim();
+
+  if (!ap || !no || !di){
+    $('#loginError').textContent = 'Complete todos los campos para continuar.';
+    $('#loginError').classList.remove('hidden');
+    return;
+  }
+  $('#loginError').classList.add('hidden');
+
+  S.alumno = {
+    apellido: ap,
+    nombre: no,
+    division: di,
+    fecha: new Date().toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' })
+  };
+
+  $('#hdrUser').textContent = `${ap}, ${no} · ${di}`;
+  goTo('menu');
+  toast('Técnico identificado. Caso Clínico 01 iniciado.', 'ok');
+});
+
+/* =========================================================
+   MÓDULO 1 — UEFI
+   ========================================================= */
+// Pestañas
+$$('#screen-m1 .bios-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $$('#screen-m1 .bios-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    $$('#screen-m1 .tab-pane').forEach(p => p.classList.add('hidden'));
+    const pane = document.querySelector(`#screen-m1 .tab-pane[data-pane="${btn.dataset.tab}"]`);
+    if (pane) pane.classList.remove('hidden');
+  });
+});
+
+// Toggles de seguridad
+function syncSecuridad(){
+  const tpm = $('#tgTpm'), sb = $('#tgSb');
+  tpm.textContent = S.m1.tpm ? '✔ HABILITADO' : 'DESACTIVADO';
+  tpm.className = 'btn text-xs px-3 whitespace-nowrap min-w-[104px] ' + (S.m1.tpm ? 'btn-neon' : 'btn-sec');
+  sb.textContent = S.m1.sb ? '✔ HABILITADO' : 'DESACTIVADO';
+  sb.className = 'btn text-xs px-3 whitespace-nowrap min-w-[104px] ' + (S.m1.sb ? 'btn-neon' : 'btn-sec');
+
+  $('#bootSbState').textContent = S.m1.sb ? 'Enabled' : 'Disabled';
+  $('#bootSbState').className = S.m1.sb ? 'text-neon' : 'text-red-400';
+  $('#bootTpmState').textContent = S.m1.tpm ? 'TPM 2.0 · Enabled' : 'Not Detected';
+  $('#bootTpmState').className = S.m1.tpm ? 'text-neon' : 'text-red-400';
+
+  const fb = $('#m1-sec-fb');
+  if (S.m1.tpm && S.m1.sb){
+    fb.innerHTML = '<span class="text-neon font-bold">✔ Equipo compatible con Windows 11.</span> TPM 2.0 y Secure Boot habilitados correctamente.';
+  } else {
+    const falta = [];
+    if (!S.m1.tpm) falta.push('TPM 2.0');
+    if (!S.m1.sb) falta.push('Secure Boot');
+    fb.innerHTML = `Falta habilitar: <span class="text-orange-400 font-bold">${falta.join(' y ')}</span>. Windows 11 no podrá instalarse.`;
+  }
+}
+$('#tgTpm').addEventListener('click', () => { S.m1.tpm = !S.m1.tpm; syncSecuridad(); updateProgress(); });
+$('#tgSb').addEventListener('click',  () => { S.m1.sb  = !S.m1.sb;  syncSecuridad(); updateProgress(); });
+
+// Paso 1
+$('#btnLeerVersion').addEventListener('click', () => {
+  S.m1.versionLeida = true;
+  const v = $('#versionInfo');
+  v.classList.remove('hidden');
+  v.innerHTML = `Versión instalada: <b class="text-white">1.2.0</b><br>Última versión oficial: <b class="text-neon">1.4.2</b> (sitio del fabricante)`;
+  toast('Versión de firmware detectada.', 'info');
+});
+
+$$('input[name="fuente"]').forEach(r => r.addEventListener('change', () => {
+  S.m1.fuente = r.value;
+  const lbl = r.closest('.opt');
+  $$('input[name="fuente"]').forEach(x => x.closest('.opt').classList.remove('correct','wrong'));
+  if (r.value === 'oficial'){
+    lbl.classList.add('correct');
+    toast('Fuente oficial verificada. ✔', 'ok');
+  } else {
+    lbl.classList.add('wrong');
+    toast('Nunca uses versiones beta: riesgo de brick.', 'err');
+  }
+}));
+
+// Paso 2
+$$('input[name="formato"]').forEach(r => r.addEventListener('change', () => {
+  S.m1.formato = r.value;
+  const fb = $('#fmtFb');
+  $$('input[name="formato"]').forEach(x => x.closest('.opt').classList.remove('correct','wrong'));
+  const lbl = r.closest('.opt');
+  if (r.value === 'FAT32'){
+    lbl.classList.add('correct');
+    fb.innerHTML = '<span class="text-neon">✔ FAT32: único sistema de archivos reconocido universalmente por los entornos UEFI.</span>';
+  } else {
+    lbl.classList.add('wrong');
+    fb.innerHTML = '<span class="text-red-400">✖ El firmware UEFI no leerá la unidad. Use FAT32.</span>';
+  }
+}));
+
+// Paso 3 y 4
+$('#chkHash').addEventListener('change', e => {
+  S.m1.hash = e.target.checked;
+  $('#optHash').classList.toggle('correct', e.target.checked);
+});
+$('#chkUps').addEventListener('change', e => {
+  S.m1.ups = e.target.checked;
+  $('#optUps').classList.toggle('correct', e.target.checked);
+});
+
+// Botón de flasheo
+$('#btnFlash').addEventListener('click', () => {
+  const fb = $('#m1-fb');
+  const faltan = [];
+  if (!S.m1.versionLeida) faltan.push('consultar la versión actual');
+  if (S.m1.fuente !== 'oficial') faltan.push('descargar el archivo del sitio oficial');
+  if (S.m1.formato !== 'FAT32') faltan.push('formatear el USB en FAT32');
+  if (!S.m1.hash) faltan.push('verificar el hash SHA-256');
+  if (!S.m1.ups) faltan.push('conectar el equipo a una UPS');
+
+  if (faltan.length){
+    fb.innerHTML = `<span class="text-red-400 font-bold">⚠ PROTOCOLO INCOMPLETO.</span> Antes de flashear debe: ${faltan.join(', ')}.`;
+    toast('Protocolo de seguridad incompleto.', 'err');
+    return;
+  }
+
+  if (S.m1.flasheado){
+    fb.innerHTML = '<span class="text-neon">✔ El firmware ya fue actualizado correctamente.</span>';
+    return;
+  }
+
+  // Animación de flasheo
+  $('#btnFlash').disabled = true;
+  fb.innerHTML = '<span class="text-cyan-300">Escribiendo firmware... NO APAGUE EL EQUIPO.</span>';
+  let p = 0;
+  const bar = $('#flashBar');
+  const iv = setInterval(() => {
+    p += Math.random() * 12 + 4;
+    if (p >= 100){
+      p = 100;
+      clearInterval(iv);
+      S.m1.flasheado = true;
+      fb.innerHTML = '<span class="text-neon font-bold">✔ ACTUALIZACIÓN COMPLETADA.</span> Firmware 1.4.2 escrito y verificado. El sistema se reiniciará.';
+      toast('Flasheo seguro completado. ✔', 'ok');
+      $('#btnFlash').disabled = false;
+      $('#btnFlash').textContent = '✔ FIRMWARE ACTUALIZADO';
+      updateProgress();
+    }
+    bar.style.width = p + '%';
+  }, 190);
+});
+
+/* =========================================================
+   MÓDULO 2 — RAM
+   ========================================================= */
+function setGauge(freq, animate){
+  const min = 4000, max = 6000;
+  const pct = Math.max(0.03, Math.min(1, (freq - min) / (max - min)));
+  const arc = 251.3;
+  const fill = $('#gaugeFill');
+  fill.style.strokeDashoffset = arc * (1 - pct);
+
+  const valEl = $('#gaugeVal');
+  const lbl = $('#gaugeLabel');
+
+  if (animate){
+    const start = S.m2.freq, end = freq, dur = 1000, t0 = performance.now();
+    const step = t => {
+      const k = Math.min(1, (t - t0) / dur);
+      const cur = Math.round(start + (end - start) * (1 - Math.pow(1 - k, 3)));
+      valEl.textContent = cur + ' MHz';
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  } else {
+    valEl.textContent = freq + ' MHz';
+  }
+
+  if (freq >= 6000){
+    valEl.className = 'text-3xl font-black mono text-neon';
+    lbl.textContent = 'PERFIL XMP/EXPO ACTIVO · VELOCIDAD REAL';
+    lbl.className = 'text-[11px] mono text-neon mt-1 tracking-wide';
+  } else {
+    valEl.className = 'text-3xl font-black mono text-orange-400';
+    lbl.textContent = 'ESTÁNDAR JEDEC POR DEFECTO';
+    lbl.className = 'text-[11px] mono text-orange-400 mt-1 tracking-wide';
+  }
+}
+
+function m2Refresh(){
+  $('#m2-step2').classList.toggle('locked', !S.m2.acceso);
+  $('#m2-step3').classList.toggle('locked', !S.m2.localizado);
+  $('#m2-step4').classList.toggle('locked', !S.m2.perfil);
+}
+
+// Paso 1
+$$('#screen-m2 [data-post]').forEach(b => b.addEventListener('click', () => {
+  S.m2.acceso = true;
+  $('#m2-postFb').innerHTML = `<span class="text-neon">✔ Tecla ${b.dataset.post} reconocida. Ingresando al UEFI SETUP...</span>`;
+  m2Refresh();
+  toast('Acceso al firmware concedido.', 'ok');
+}));
+
+// Paso 2
+$$('input[name="m2sec"]').forEach(r => r.addEventListener('change', () => {
+  $$('input[name="m2sec"]').forEach(x => x.closest('.opt').classList.remove('correct','wrong'));
+  const lbl = r.closest('.opt');
+  if (r.value === 'dram'){
+    lbl.classList.add('correct');
+    S.m2.localizado = true;
+    toast('Sección DRAM localizada. ✔', 'ok');
+  } else {
+    lbl.classList.add('wrong');
+    toast('Sección incorrecta. Busque Configuración DRAM.', 'err');
+  }
+  m2Refresh();
+}));
+
+// Paso 3
+$$('input[name="m2perfil"]').forEach(r => r.addEventListener('change', () => {
+  const fb = $('#m2-perfilFb');
+  $$('input[name="m2perfil"]').forEach(x => x.closest('.opt').classList.remove('correct','wrong'));
+  const lbl = r.closest('.opt');
+
+  if (r.value === 'xmp'){
+    lbl.classList.add('correct');
+    S.m2.perfil = 'XMP/EXPO';
+    fb.innerHTML = '<span class="text-neon">✔ Perfil certificado seleccionado. Voltaje, latencias y frecuencia se ajustan automáticamente.</span>';
+    toast('Perfil XMP/EXPO activado.', 'ok');
+  } else if (r.value === 'jedec'){
+    lbl.classList.add('wrong');
+    S.m2.perfil = null;
+    fb.innerHTML = '<span class="text-orange-400">La RAM seguirá a 4.800 MHz: está pagando por velocidad que no usa.</span>';
+    toast('La RAM permanece en JEDEC.', 'err');
+  } else {
+    lbl.classList.add('wrong');
+    S.m2.perfil = null;
+    fb.innerHTML = '<span class="text-red-400">✖ Overclock manual sin certificar: riesgo de inestabilidad y corrupción de datos.</span>';
+    toast('Perfil no certificado. Riesgo alto.', 'err');
+  }
+  m2Refresh();
+}));
+
+// Paso 4
+$('#btnF10').addEventListener('click', () => {
+  if (!S.m2.perfil) return;
+  S.m2.validado = true;
+  S.m2.freq = 6000;
+  setGauge(6000, true);
+  $('#m2-cpuz').classList.remove('hidden');
+  $('#cpuzFreq').textContent = '3000 MHz';
+  toast('Validado en CPU-Z: DDR5-6000 real. ✔', 'ok');
+  updateProgress();
+});
+
+/* =========================================================
+   MÓDULO 3 — BOTTLENECK + PSU
+   ========================================================= */
+const TIERS = { 1:'BÁSICO', 2:'MEDIO', 3:'ALTO' };
+
+function syncTierLabels(){
+  S.m3.cpuTier = parseInt($('#cpuTier').value, 10);
+  S.m3.gpuTier = parseInt($('#gpuTier').value, 10);
+  $('#cpuTierLabel').textContent = TIERS[S.m3.cpuTier];
+  $('#gpuTierLabel').textContent = TIERS[S.m3.gpuTier];
+}
+$('#cpuTier').addEventListener('input', syncTierLabels);
+$('#gpuTier').addEventListener('input', syncTierLabels);
+
+$('#btnTest').addEventListener('click', () => {
+  const c = S.m3.cpuTier, g = S.m3.gpuTier;
+  let cpuLoad, gpuLoad, tipo, msg, color;
+
+  if (c < g){
+    cpuLoad = 100; gpuLoad = 58; tipo = 'cuello';
+    color = '#ef4444';
+    msg = `<b class="text-red-400">CUELLO EN CPU.</b> La CPU está al 100% mientras la GPU queda infrautilizada (&lt;80%).<br>
+           <span class="text-slate-400">Síntoma: <b>stuttering severo</b> y tirones. La GPU no recibe datos a tiempo.</span>`;
+  } else if (g < c){
+    cpuLoad = 46; gpuLoad = 100; tipo = 'cuello';
+    color = '#ef4444';
+    msg = `<b class="text-red-400">CUELLO EN GPU.</b> La GPU está al 100% y la CPU desperdiciada esperando gráficos.<br>
+           <span class="text-slate-400">Síntoma: FPS bajos y limitados por el procesador gráfico.</span>`;
+  } else {
+    cpuLoad = 86; gpuLoad = 88; tipo = 'ok';
+    color = '#39FF14';
+    msg = `<b class="text-neon">SISTEMA EQUILIBRADO.</b> Ambos componentes trabajan en sincronía.<br>
+           <span class="text-slate-400">Rendimiento óptimo, sin recursos desperdiciados.</span>`;
+    if (c === 1){
+      msg += `<br><span class="text-orange-400 text-[10px]">Nota: el balance es correcto pero la gama es baja. Considere actualizar ambos componentes.</span>`;
+    }
+  }
+
+  $('#m3-result').classList.remove('hidden');
+  $('#cpuBar').style.width = cpuLoad + '%';
+  $('#gpuBar').style.width = gpuLoad + '%';
+  $('#cpuBar').style.background = cpuLoad >= 95 ? 'linear-gradient(90deg,#f87171,#ef4444)' : 'linear-gradient(90deg,#22d3ee,#39FF14)';
+  $('#gpuBar').style.background = gpuLoad >= 95 ? 'linear-gradient(90deg,#f87171,#ef4444)' : 'linear-gradient(90deg,#22d3ee,#39FF14)';
+  $('#cpuPct').textContent = cpuLoad + '%';
+  $('#gpuPct').textContent = gpuLoad + '%';
+  $('#cpuPct').style.color = cpuLoad >= 95 ? '#f87171' : '#e2e8f0';
+  $('#gpuPct').style.color = gpuLoad >= 95 ? '#f87171' : '#e2e8f0';
+
+  const d = $('#m3-diagnostico');
+  d.innerHTML = msg;
+  d.style.borderColor = color;
+  d.style.background = tipo === 'ok' ? 'rgba(57,255,20,.06)' : 'rgba(239,68,68,.06)';
+
+  S.m3.balance = (tipo === 'ok');
+  S.m3.testeado = true;
+  updateProgress();
+});
+
+$$('input[name="psu"]').forEach(r => r.addEventListener('change', () => {
+  S.m3.psu = r.value;
+  const fb = $('#m3-psuFb');
+  $$('input[name="psu"]').forEach(x => x.closest('.opt').classList.remove('correct','wrong'));
+  const lbl = r.closest('.opt');
+  const w = parseInt(r.value, 10);
+
+  if (w === 650){
+    lbl.classList.add('correct');
+    S.m3.psuOk = true;
+    fb.innerHTML = '<span class="text-neon">✔ 650 W cubre los 520 W + 20% de margen (624 W) e incluye conectores PCIe dedicados.</span>';
+    toast('Fuente correctamente dimensionada. ✔', 'ok');
+  } else if (w < 624){
+    lbl.classList.add('wrong');
+    S.m3.psuOk = false;
+    fb.innerHTML = `<span class="text-red-400">✖ ${w} W es insuficiente. El sistema necesita al menos 624 W (520 W + 20%). Riesgo de apagados y daño.</span>`;
+    toast('PSU insuficiente.', 'err');
+  } else {
+    lbl.classList.add('wrong');
+    S.m3.psuOk = false;
+    fb.innerHTML = '<span class="text-orange-400">⚠ 1200 W funciona, pero está sobredimensionada: mayor costo, mayor consumo en vacío y sin beneficio real.</span>';
+    toast('PSU sobredimensionada.', 'err');
+  }
+  updateProgress();
+}));
+
+/* =========================================================
+   MÓDULO 4 — S.M.A.R.T.
+   ========================================================= */
+$$('input[name="hddAct"]').forEach(r => r.addEventListener('change', () => {
+  const fb = $('#m4-hddFb');
+  $$('input[name="hddAct"]').forEach(x => x.closest('.opt').classList.remove('correct','wrong'));
+  const lbl = r.closest('.opt');
+
+  if (r.value === 'backup'){
+    lbl.classList.add('correct');
+    S.m4.hddAccion = 'Respaldo inmediato y reemplazo de la unidad';
+    S.m4.hddOk = true;
+    fb.innerHTML = '<span class="text-neon">✔ Correcto. Los sectores reasignados crecientes anticipan un fallo mecánico inminente. Primero se salvan los datos.</span>';
+    toast('Diagnóstico HDD correcto. ✔', 'ok');
+  } else {
+    lbl.classList.add('wrong');
+    S.m4.hddOk = false;
+    const errs = {
+      format: 'Formatear no repara la mecánica dañada: los platos y cabezales siguen fallando.',
+      ignore: 'Los sectores reasignados son señal fiable de degradación física, no reserva normal.',
+      chkdsk: 'chkdsk marca sectores, pero no detiene el fallo mecánico progresivo.'
+    };
+    fb.innerHTML = `<span class="text-red-400">✖ ${errs[r.value]}</span>`;
+    toast('Acción incorrecta.', 'err');
+  }
+  updateProgress();
+}));
+
+$('#btnValidarSSD').addEventListener('click', () => {
+  const marcados = $$('#ssdOpts input:checked').map(i => i.value);
+  const correctos = ['cool', 'backup', 'fans'];
+  const fb = $('#m4-ssdFb');
+
+  $$('#ssdOpts input').forEach(i => {
+    const lbl = i.closest('.opt');
+    lbl.classList.remove('correct','wrong');
+    if (i.checked && correctos.includes(i.value)) lbl.classList.add('correct');
+    if (i.checked && !correctos.includes(i.value)) lbl.classList.add('wrong');
+  });
+
+  const ok = correctos.every(v => marcados.includes(v)) &&
+             marcados.every(v => correctos.includes(v));
+
+  S.m4.ssdAcciones = marcados;
+  S.m4.ssdOk = ok;
+
+  if (ok){
+    fb.innerHTML = '<span class="text-neon">✔ Auditoría correcta. 72 °C supera el límite de 70 °C: hay que mejorar la refrigeración y respaldar preventivamente.</span>';
+    toast('Auditoría SSD correcta. ✔', 'ok');
+  } else {
+    fb.innerHTML = '<span class="text-red-400">✖ Selección incorrecta. Recuerde: el SSD no se desfragmenta y el TBW al 30% no exime del control térmico.</span>';
+    toast('Revise la selección del SSD.', 'err');
+  }
+  updateProgress();
+});
+
+/* =========================================================
+   MATRIZ DE RESOLUCIÓN
+   ========================================================= */
+function buildMatriz(){
+  const a = S.alumno;
+  $('#matrizDatos').innerHTML = `
+    <div class="flex justify-between border-b border-slate-800 pb-1 mb-1"><span class="text-slate-500">Alumno</span><span class="font-bold">${a.apellido}, ${a.nombre}</span></div>
+    <div class="flex justify-between border-b border-slate-800 pb-1 mb-1"><span class="text-slate-500">División</span><span>${a.division}</span></div>
+    <div class="flex justify-between"><span class="text-slate-500">Fecha</span><span>${a.fecha || new Date().toLocaleDateString('es-AR')}</span></div>
+  `;
+
+  // Relación CPU/GPU
+  let cpuGpuEstado, cpuGpuAccion;
+  if (!S.m3.testeado){
+    cpuGpuEstado = 'Sin analizar';
+    cpuGpuAccion = 'Pendiente: ejecutar la prueba de estrés en el Módulo 03.';
+  } else if (S.m3.balance){
+    cpuGpuEstado = `Sistema equilibrado (CPU ${TIERS[S.m3.cpuTier]} / GPU ${TIERS[S.m3.gpuTier]})`;
+    cpuGpuAccion = 'Sin cuello de botella. Componentes trabajando en sincronía.';
+  } else if (S.m3.cpuTier < S.m3.gpuTier){
+    cpuGpuEstado = 'Cuello de botella en CPU (CPU al 100%, GPU infrautilizada)';
+    cpuGpuAccion = 'Stuttering severo. Actualizar CPU / plataforma o reducir la carga del procesador.';
+  } else {
+    cpuGpuEstado = 'Cuello de botella en GPU (GPU al 100%, CPU desperdiciada)';
+    cpuGpuAccion = 'FPS limitados por gráficos. Actualizar la GPU para aprovechar la CPU.';
+  }
+
+  // Perfil RAM
+  let ramEstado, ramAccion;
+  if (S.m2.freq >= 6000){
+    ramEstado = `Perfil XMP/EXPO activo · ${S.m2.freq} MHz reales (DDR5-6000)`;
+    ramAccion = 'Perfil certificado validado en CPU-Z. Voltaje y latencias ajustados automáticamente.';
+  } else if (S.m2.perfil === null && S.m2.acceso){
+    ramEstado = 'RAM operando en JEDEC por defecto · 4.800 MHz';
+    ramAccion = 'Activar perfil XMP (Intel) o EXPO (AMD) en la sección DRAM del UEFI.';
+  } else {
+    ramEstado = 'RAM operando en JEDEC por defecto · 4.800 MHz (se paga 6.000 MHz)';
+    ramAccion = 'Activar perfil XMP (Intel) o EXPO (AMD) en la sección DRAM del UEFI.';
+  }
+
+  // TPM / Secure Boot
+  const secOk = S.m1.tpm && S.m1.sb;
+  const tpmEstado = `TPM 2.0: ${S.m1.tpm ? 'Habilitado' : 'Deshabilitado'} · Secure Boot: ${S.m1.sb ? 'Habilitado' : 'Deshabilitado'}`;
+  const tpmAccion = secOk
+    ? 'Requisitos de Windows 11 cumplidos. Firmware en modo UEFI seguro.'
+    : 'Habilitar TPM 2.0 (fTPM/PTT) y Secure Boot en el UEFI para permitir la instalación de Windows 11.';
+
+  // Almacenamiento
+  let almEstado, almAccion;
+  const hddTxt = S.m4.hddOk ? 'HDD con sectores reasignados (ID 05 = 120) → reemplazo programado'
+                            : 'HDD con sectores reasignados (ID 05 = 120, umbral 40) → FALLO INMINENTE';
+  const ssdTxt = S.m4.ssdOk ? 'SSD al 30% de TBW pero a 72 °C (sobre el límite de 70 °C) → refrigeración corregida'
+                            : 'SSD al 30% de TBW con temperatura de 72 °C (límite 70 °C)';
+  almEstado = `${hddTxt}<br>${ssdTxt}`;
+  almAccion = (S.m4.hddOk
+      ? 'Respaldo de datos ejecutado y unidad reemplazada por el desgaste mecánico progresivo.'
+      : 'Respaldar los datos de inmediato y reemplazar el HDD. Un valor creciente de sectores reasignados anticipa el fallo.')
+    + '<br>' + (S.m4.ssdOk
+      ? 'Instalación de disipador M.2, verificación de la curva de ventiladores y clonado preventivo.'
+      : 'Instalar disipador M.2, revisar la curva de ventiladores del gabinete y programar respaldo preventivo. No desfragmentar.');
+
+  // Firmware
+  const fwEstado = S.m1.flasheado ? 'Firmware actualizado a la versión 1.4.2 (origen oficial)' : 'Firmware en versión 1.2.0 (desactualizado)';
+  const fwAccion = S.m1.flasheado
+    ? 'Flasheo ejecutado con USB FAT32, hash SHA-256 verificado y equipo conectado a UPS.'
+    : 'Actualizar con archivo del sitio oficial, USB FAT32, verificación de hash y UPS conectada. Nunca usar versiones beta.';
+
+  // PSU
+  const psuEstado = S.m3.psu ? `Fuente seleccionada: ${S.m3.psu} W (consumo total 520 W)` : 'Fuente sin dimensionar';
+  const psuAccion = S.m3.psuOk
+    ? 'PSU de 650 W: cubre 520 W + 20% de margen con conectores PCIe dedicados.'
+    : 'Calcular TDP total + 20% de margen. Para 520 W se requiere una fuente de 650 W con conectores PCIe dedicados.';
+
+  const filas = [
+    ['Firmware UEFI', fwEstado, fwAccion],
+    ['TPM / Secure Boot', tpmEstado, tpmAccion],
+    ['Perfil RAM', ramEstado, ramAccion],
+    ['Relación CPU/GPU', cpuGpuEstado, cpuGpuAccion],
+    ['Fuente de Alimentación', psuEstado, psuAccion],
+    ['Salud Almacenamiento', almEstado, almAccion]
+  ];
+
+  $('#matrizBody').innerHTML = filas.map(f => `
+    <tr>
+      <td>${f[0]}</td>
+      <td class="matrix-cell text-slate-300" contenteditable="true">${f[1]}</td>
+      <td class="matrix-cell text-slate-300" contenteditable="true">${f[2]}</td>
+    </tr>`).join('');
+
+  // Aviso de módulos pendientes
+  const pend = Object.entries(DONE).filter(([, v]) => !v).map(([k]) => k.toUpperCase());
+  const aviso = $('#matrizAviso');
+  if (pend.length){
+    aviso.classList.remove('hidden');
+    aviso.innerHTML = `⚠ <b>Módulos sin completar:</b> ${pend.join(', ')}. La matriz se generará igualmente, pero se recomienda finalizar el diagnóstico completo antes de exportar.`;
+  } else {
+    aviso.classList.add('hidden');
+  }
+}
+
+/* =========================================================
+   EXPORTAR .DOC
+   ========================================================= */
+$('#btnDOC').addEventListener('click', () => {
+  const a = S.alumno;
+  if (!a.nombre){
+    toast('Debe identificarse antes de exportar.', 'err');
+    return;
+  }
+
+  const fecha = a.fecha || new Date().toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' });
+
+  let filas = '';
+  $$('#matrizTable tbody tr').forEach(tr => {
+    const c = tr.querySelectorAll('td');
+    filas += `<tr>
+      <td style="width:20%"><b>${c[0].innerText.trim()}</b></td>
+      <td style="width:40%">${c[1].innerHTML.trim()}</td>
+      <td style="width:40%">${c[2].innerHTML.trim()}</td>
+    </tr>`;
+  });
+
+  const obs = ($('#obsFinal').value || '').trim().replace(/\n/g, '<br>') || '—';
+
+  const docHTML = `
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8">
+<title>Informe Técnico - ${a.apellido}, ${a.nombre}</title>
+<!--[if gte mso 9]>
+<xml>
+  <w:WordDocument>
+    <w:View>Print</w:View>
+    <w:Zoom>100</w:Zoom>
+    <w:DoNotOptimizeForBrowser/>
+  </w:WordDocument>
+</xml>
+<![endif]-->
+<style>
+  @page { size: A4; margin: 2cm; }
+  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; color: #111; line-height: 1.4; }
+  h1 { font-size: 17pt; color: #0e7490; margin: 0 0 4pt 0; }
+  h2 { font-size: 13pt; color: #0f172a; border-bottom: 2px solid #0e7490; padding-bottom: 3pt; margin-top: 20pt; }
+  .sub { font-size: 9.5pt; color: #475569; margin: 0; }
+  .datos { margin-top: 12pt; font-size: 11pt; }
+  table { border-collapse: collapse; width: 100%; margin-top: 10pt; }
+  th, td { border: 1px solid #64748b; padding: 6pt; font-size: 10pt; vertical-align: top; text-align: left; }
+  th { background: #e2e8f0; color: #0f172a; }
+  .firma { border: none; margin-top: 40pt; }
+  .firma td { border: none; font-size: 10pt; color: #334155; padding-top: 30pt; }
+  .nota { font-size: 9pt; color: #64748b; margin-top: 24pt; font-style: italic; }
+</style>
+</head>
+<body>
+
+  <h1>LABORATORIO TÉCNICO DE DIAGNÓSTICO AVANZADO DE HARDWARE</h1>
+  <p class="sub">Informática Aplicada — Caso Clínico 01: Diagnóstico Temprano y Configuración Avanzada de Hardware</p>
+  <p class="sub">Protocolo v1.0 — Estaciones de trabajo modernas</p>
+  <hr>
+
+  <div class="datos">
+    <p>
+      <b>Alumno:</b> ${a.apellido}, ${a.nombre}<br>
+      <b>División:</b> ${a.division}<br>
+      <b>Fecha:</b> ${fecha}
+    </p>
+  </div>
+
+  <h2>Matriz de Resolución Técnica</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:20%">Parámetro</th>
+        <th style="width:40%">Estado Detectado</th>
+        <th style="width:40%">Acción / Solución</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${filas}
+    </tbody>
+  </table>
+
+  <h2>Observaciones y Conclusiones</h2>
+  <p>${obs}</p>
+
+  <table class="firma">
+    <tr>
+      <td style="width:50%">___________________________<br>Firma del Alumno</td>
+      <td>___________________________<br>Firma del Docente</td>
+    </tr>
+  </table>
+
+  <p class="nota">
+    El diagnóstico temprano no es un lujo: es la diferencia entre un cliente satisfecho con datos intactos
+    y un equipo destruido con información perdida. Tu trabajo protege lo invaluable.
+  </p>
+
+</body>
+</html>`;
+
+  const blob = new Blob(['\ufeff', docHTML], { type: 'application/msword;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  const nombreArchivo = `Informe_Tecnico_${a.apellido}_${a.nombre}`.replace(/[^\w\-]/g, '_');
+  link.href = url;
+  link.download = nombreArchivo + '.doc';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+  toast('Informe .DOC generado y descargado. ✔', 'ok');
+});
+
+/* =========================================================
+   REINICIAR
+   ========================================================= */
+function reiniciarLab(){
+  if (!confirm('¿Reiniciar todo el laboratorio? Se perderán los datos del caso actual.')) return;
+
+  S.m1 = { versionLeida:false, fuente:null, formato:null, hash:false, ups:false, flasheado:false, tpm:false, sb:false };
+  S.m2 = { acceso:false, localizado:false, perfil:null, validado:false, freq:4800 };
+  S.m3 = { cpuTier:1, gpuTier:1, balance:false, psu:null, psuOk:false, testeado:false };
+  S.m4 = { hddAccion:null, hddOk:false, ssdAcciones:[], ssdOk:false };
+
+  // M1
+  syncSecuridad();
+  $('#versionInfo').classList.add('hidden');
+  $('#versionInfo').innerHTML = '';
+  $$('input[name="fuente"], input[name="formato"]').forEach(i => { i.checked = false; i.closest('.opt').classList.remove('correct','wrong'); });
+  $('#chkHash').checked = false; $('#optHash').classList.remove('correct');
+  $('#chkUps').checked = false;  $('#optUps').classList.remove('correct');
+  $('#fmtFb').innerHTML = '';
+  $('#m1-fb').innerHTML = '';
+  $('#flashBar').style.width = '0%';
+  $('#btnFlash').disabled = false;
+  $('#btnFlash').textContent = '⚡ INICIAR FLASHEO DE FIRMWARE';
+  $$('#screen-m1 .bios-tab').forEach((b, i) => b.classList.toggle('active', i === 0));
+  $$('#screen-m1 .tab-pane').forEach((p, i) => p.classList.toggle('hidden', i !== 0));
+
+  // M2
+  setGauge(4800, false);
+  $('#m2-postFb').innerHTML = 'Seleccione la tecla correcta durante el POST.';
+  $$('input[name="m2sec"], input[name="m2perfil"]').forEach(i => { i.checked = false; i.closest('.opt').classList.remove('correct','wrong'); });
+  $('#m2-perfilFb').innerHTML = '';
+  $('#m2-cpuz').classList.add('hidden');
+  m2Refresh();
+
+  // M3
+  $('#cpuTier').value = 1; $('#gpuTier').value = 1; syncTierLabels();
+  $('#m3-result').classList.add('hidden');
+  $('#m3-diagnostico').innerHTML = '';
+  $('#m3-psuFb').innerHTML = '';
+  $$('input[name="psu"]').forEach(i => { i.checked = false; i.closest('.opt').classList.remove('correct','wrong'); });
+  $('#cpuBar').style.width = '0%'; $('#gpuBar').style.width = '0%';
+
+  // M4
+  $$('input[name="hddAct"]').forEach(i => { i.checked = false; i.closest('.opt').classList.remove('correct','wrong'); });
+  $$('#ssdOpts input').forEach(i => { i.checked = false; i.closest('.opt').classList.remove('correct','wrong'); });
+  $('#m4-hddFb').innerHTML = '';
+  $('#m4-ssdFb').innerHTML = '';
+  $('#obsFinal').value = '';
+  $('#matrizBody').innerHTML = '';
+
+  updateProgress();
+  goTo('menu');
+  toast('Laboratorio reiniciado.', 'info');
+}
+
+/* =========================================================
+   INICIALIZACIÓN
+   ========================================================= */
+syncSecuridad();
+m2Refresh();
+syncTierLabels();
+setGauge(4800, false);
+updateProgress();
+</script>
+</body>
+</html>
